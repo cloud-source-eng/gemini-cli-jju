@@ -106,7 +106,7 @@ describe('ToolOverflowConsistencyChecks: ToolGroupMessage and ToolResultDisplay 
     );
 
     // Verify truncation is occurring (standard mode uses MaxSizedBox)
-    await waitFor(() => expect(lastFrame()).toContain('hidden (Ctrl+O'));
+    await waitFor(() => expect(lastFrame()).toContain('hidden (ctrl+o'));
 
     // In Standard mode, ToolGroupMessage calculates hasOverflow correctly now.
     // While Standard mode doesn't render the inline hint (ShowMoreLines returns null),
