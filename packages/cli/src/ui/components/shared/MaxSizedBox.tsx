@@ -123,8 +123,10 @@ export const MaxSizedBox: React.FC<MaxSizedBoxProps> = ({
       {totalHiddenLines > 0 && overflowDirection === 'top' && (
         <Text color={theme.text.secondary} wrap="truncate">
           {isNarrow
-            ? `... ${totalHiddenLines} hidden (ctrl+o) ...`
-            : `... first ${totalHiddenLines} line${totalHiddenLines === 1 ? '' : 's'} hidden (ctrl+o to show) ...`}
+            ? `... ${totalHiddenLines} hidden (${showMoreKey}) ...`
+            : `... press ${showMoreKey} to show ${totalHiddenLines} hidden line${
+                totalHiddenLines === 1 ? '' : 's'
+              } ...`}
         </Text>
       )}
       <Box
@@ -145,8 +147,10 @@ export const MaxSizedBox: React.FC<MaxSizedBoxProps> = ({
       {totalHiddenLines > 0 && overflowDirection === 'bottom' && (
         <Text color={theme.text.secondary} wrap="truncate">
           {isNarrow
-            ? `... ${totalHiddenLines} hidden (ctrl+o) ...`
-            : `... last ${totalHiddenLines} line${totalHiddenLines === 1 ? '' : 's'} hidden (ctrl+o to show) ...`}
+            ? `... ${totalHiddenLines} hidden (${showMoreKey}) ...`
+            : `... press ${showMoreKey} to show ${totalHiddenLines} hidden line${
+                totalHiddenLines === 1 ? '' : 's'
+              } ...`}
         </Text>
       )}
     </Box>
