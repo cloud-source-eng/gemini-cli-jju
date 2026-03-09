@@ -35,6 +35,14 @@ interface RewindViewerProps {
 
 const MAX_LINES_PER_BOX = 2;
 
+const getCleanedRewindText = (userPrompt: MessageRecord): string => {
+  const contentToUse = userPrompt.displayContent || userPrompt.content;
+  const originalUserText = contentToUse ? partToString(contentToUse) : '';
+  return userPrompt.displayContent
+    ? originalUserText
+    : stripReferenceContent(originalUserText);
+};
+
 export const RewindViewer: React.FC<RewindViewerProps> = ({
   conversation,
   onExit,
@@ -154,21 +162,20 @@ export const RewindViewer: React.FC<RewindViewerProps> = ({
         stats={confirmationStats}
         terminalWidth={terminalWidth}
         timestamp={selectedMessage?.timestamp}
-        onConfirm={async (outcome) => {
+        onConfirm={(outcome) => {
           if (outcome === RewindOutcome.Cancel) {
             clearSelection();
           } else {
-            const userPrompt = interactions.find(
-              (m) => m.id === selectedMessageId,
-            );
-            if (userPrompt) {
-              const originalUserText = userPrompt.content
-                ? partToString(userPrompt.content)
-                : '';
-              const cleanedText = stripReferenceContent(originalUserText);
-              setIsRewinding(true);
-              await onRewind(selectedMessageId, cleanedText, outcome);
-            }
+            void (async () => {
+              const userPrompt = interactions.find(
+                (m) => m.id === selectedMessageId,
+              );
+              if (userPrompt) {
+                const cleanedText = getCleanedRewindText(userPrompt);
+                setIsRewinding(true);
+                await onRewind(selectedMessageId, cleanedText, outcome);
+              }
+            })();
           }
         }}
       />
@@ -224,7 +231,9 @@ export const RewindViewer: React.FC<RewindViewerProps> = ({
                       isSelected ? theme.status.success : theme.text.primary
                     }
                   >
-                    {partToString(userPrompt.content)}
+                    {partToString(
+                      userPrompt.displayContent || userPrompt.content,
+                    )}
                   </Text>
                   <Text color={theme.text.secondary}>
                     Cancel rewind and stay here
@@ -235,10 +244,7 @@ export const RewindViewer: React.FC<RewindViewerProps> = ({
 
             const stats = getStats(userPrompt);
             const firstFileName = stats?.details?.at(0)?.fileName;
-            const originalUserText = userPrompt.content
-              ? partToString(userPrompt.content)
-              : '';
-            const cleanedText = stripReferenceContent(originalUserText);
+            const cleanedText = getCleanedRewindText(userPrompt);
 
             return (
               <Box flexDirection="column" marginBottom={1}>
