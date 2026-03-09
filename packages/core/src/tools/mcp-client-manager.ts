@@ -72,9 +72,21 @@ export class McpClientManager {
   async stopExtension(extension: GeminiCLIExtension) {
     debugLogger.log(`Unloading extension: ${extension.name}`);
     await Promise.all(
-      Object.keys(extension.mcpServers ?? {}).map((name) =>
-        this.disconnectClient(name, true),
-      ),
+      Object.keys(extension.mcpServers ?? {}).map((name) => {
+        const config = this.allServerConfigs.get(name);
+        if (config?.extension?.id === extension.id) {
+          this.allServerConfigs.delete(name);
+          // Also remove from blocked servers if present
+          const index = this.blockedMcpServers.findIndex(
+            (s) => s.name === name && s.extensionName === extension.name,
+          );
+          if (index !== -1) {
+            this.blockedMcpServers.splice(index, 1);
+          }
+          return this.disconnectClient(name, true);
+        }
+        return Promise.resolve();
+      }),
     );
     await this.cliConfig.refreshMcpContext();
   }
@@ -164,6 +176,20 @@ export class McpClientManager {
     name: string,
     config: MCPServerConfig,
   ): Promise<void> {
+    const existing = this.clients.get(name);
+    if (
+      existing &&
+      existing.getServerConfig().extension?.id !== config.extension?.id
+    ) {
+      const extensionText = config.extension
+        ? ` from extension "${config.extension.name}"`
+        : '';
+      debugLogger.warn(
+        `Skipping MCP config for server with name "${name}"${extensionText} as it already exists.`,
+      );
+      return;
+    }
+
     // Always track server config for UI display
     this.allServerConfigs.set(name, config);
 
@@ -179,7 +205,6 @@ export class McpClientManager {
     }
     // User-disabled servers: disconnect if running, don't start
     if (await this.isDisabledByUser(name)) {
-      const existing = this.clients.get(name);
       if (existing) {
         await this.disconnectClient(name);
       }
@@ -191,45 +216,32 @@ export class McpClientManager {
     if (config.extension && !config.extension.isActive) {
       return;
     }
-    const existing = this.clients.get(name);
-    if (existing && existing.getServerConfig().extension !== config.extension) {
-      const extensionText = config.extension
-        ? ` from extension "${config.extension.name}"`
-        : '';
-      debugLogger.warn(
-        `Skipping MCP config for server with name "${name}"${extensionText} as it already exists.`,
-      );
-      return;
-    }
 
     const currentDiscoveryPromise = new Promise<void>((resolve, reject) => {
       (async () => {
         try {
           if (existing) {
+            this.clients.delete(name);
             await existing.disconnect();
           }
 
-          const client =
-            existing ??
-            new McpClient(
-              name,
-              config,
-              this.toolRegistry,
-              this.cliConfig.getPromptRegistry(),
-              this.cliConfig.getResourceRegistry(),
-              this.cliConfig.getWorkspaceContext(),
-              this.cliConfig,
-              this.cliConfig.getDebugMode(),
-              this.clientVersion,
-              async () => {
-                debugLogger.log('Tools changed, updating Gemini context...');
-                await this.scheduleMcpContextRefresh();
-              },
-            );
-          if (!existing) {
-            this.clients.set(name, client);
-            this.eventEmitter?.emit('mcp-client-update', this.clients);
-          }
+          const client = new McpClient(
+            name,
+            config,
+            this.toolRegistry,
+            this.cliConfig.getPromptRegistry(),
+            this.cliConfig.getResourceRegistry(),
+            this.cliConfig.getWorkspaceContext(),
+            this.cliConfig,
+            this.cliConfig.getDebugMode(),
+            this.clientVersion,
+            async () => {
+              debugLogger.log('Tools changed, updating Gemini context...');
+              await this.scheduleMcpContextRefresh();
+            },
+          );
+          this.clients.set(name, client);
+          this.eventEmitter?.emit('mcp-client-update', this.clients);
           try {
             await client.connect();
             await client.discover(this.cliConfig);
@@ -325,6 +337,15 @@ export class McpClientManager {
         this.maybeDiscoverMcpServer(name, config),
       ),
     );
+
+    // If every configured server was skipped (for example because all are
+    // disabled by user settings), no discovery promise is created. In that
+    // case we must still mark discovery complete or the UI will wait forever.
+    if (this.discoveryState === MCPDiscoveryState.IN_PROGRESS) {
+      this.discoveryState = MCPDiscoveryState.COMPLETED;
+      this.eventEmitter?.emit('mcp-client-update', this.clients);
+    }
+
     await this.cliConfig.refreshMcpContext();
   }
 
