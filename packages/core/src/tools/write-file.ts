@@ -303,19 +303,9 @@ class WriteFileToolInvocation extends BaseToolInvocation<
         await fsPromises.mkdir(dirName, { recursive: true });
       }
 
-      let finalContent = fileContent;
-      const useCRLF =
-        !isNewFile && originalContent
-          ? detectLineEnding(originalContent) === '\r\n'
-          : os.EOL === '\r\n';
-
-      if (useCRLF) {
-        finalContent = finalContent.replace(/\r?\n/g, '\r\n');
-      }
-
       await this.config
         .getFileSystemService()
-        .writeTextFile(this.resolvedPath, finalContent);
+        .writeTextFile(this.resolvedPath, fileContent);
 
       // Generate diff for display result
       const fileName = path.basename(this.resolvedPath);
