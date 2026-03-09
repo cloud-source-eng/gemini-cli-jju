@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import * as Diff from 'diff';
 import { WRITE_FILE_TOOL_NAME } from './tool-names.js';
 import type { Config } from '../config/config.js';
@@ -33,6 +34,7 @@ import {
   ensureCorrectEdit,
   ensureCorrectFileContent,
 } from '../utils/editCorrector.js';
+import { detectLineEnding } from '../utils/textUtils.js';
 import { DEFAULT_DIFF_OPTIONS, getDiffStat } from './diffOptions.js';
 import type {
   ModifiableDeclarativeTool,
