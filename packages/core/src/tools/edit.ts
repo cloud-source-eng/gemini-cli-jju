@@ -802,13 +802,9 @@ class EditToolInvocation
       await this.ensureParentDirectoriesExistAsync(this.params.file_path);
       let finalContent = editData.newContent;
 
-      // Restore original line endings if they were CRLF, or use OS default for new files
-      const useCRLF =
-        (!editData.isNewFile && editData.originalLineEnding === '\r\n') ||
-        (editData.isNewFile && os.EOL === '\r\n');
-
-      if (useCRLF) {
-        finalContent = finalContent.replace(/\r?\n/g, '\r\n');
+      // Restore original line endings if they were CRLF
+      if (!editData.isNewFile && editData.originalLineEnding === '\r\n') {
+        finalContent = finalContent.replace(/\n/g, '\r\n');
       }
       await this.config
         .getFileSystemService()
